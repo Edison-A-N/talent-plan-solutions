@@ -24,15 +24,21 @@ impl KvStore {
         let value = &self.store_map.get(&key);
         return match value {
             None => Err(Error {
-                msg: String::from("no such key"),
+                msg: String::from("Key not found"),
                 err_type: 1,
             }),
             Some(data) => Result::Ok(Some(data.to_string())),
         };
     }
     pub fn remove(&mut self, key: String) -> Result<()> {
-        self.store_map.remove(&key);
-        return Ok(());
+        let value = self.store_map.remove(&key);
+        return match value {
+            None => Err(Error {
+                msg: String::from("Key not found"),
+                err_type: 1,
+            }),
+            Some(_) => Result::Ok(()),
+        };
     }
     pub fn open(_dir: &Path) -> Result<KvStore> {
         return Ok(KvStore::new());
