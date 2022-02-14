@@ -41,7 +41,10 @@ fn get(store: &KvStore, key: String) {
 fn remove(store: &mut KvStore, key: String) {
     let ret = store.remove(key.clone());
     match ret {
-        Err(err) => eprintln!("{}", err.msg),
+        Err(err) => {
+            println!("{}", err.msg);
+            process::exit(1);
+        }
         _ => (),
     }
 }
