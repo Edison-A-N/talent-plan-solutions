@@ -1,19 +1,21 @@
 use crate::error::Error;
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::result::Result as stdResult;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    result::Result as stdResult,
+};
 
 pub type Result<T> = stdResult<T, Error>;
 pub struct KvStore {
     pub store_map: HashMap<String, String>,
-    pub log_dir: PathBuf,
+    pub log_file: PathBuf,
 }
 
 impl KvStore {
     pub fn new() -> KvStore {
         KvStore {
             store_map: HashMap::new(),
-            log_dir: PathBuf::new(),
+            log_file: PathBuf::new(),
         }
     }
     pub fn set(&mut self, key: String, value: String) -> Result<()> {
