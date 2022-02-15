@@ -1,5 +1,6 @@
 use clap::Parser;
 pub use kvs::KvStore;
+use std::process;
 
 #[derive(clap::Parser)]
 #[clap(name = "kvs", version = "0.1.0")]
