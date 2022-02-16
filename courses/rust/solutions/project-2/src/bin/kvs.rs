@@ -1,6 +1,7 @@
 use clap::Parser;
 pub use kvs::KvStore;
 use std::process;
+use std::path::Path;
 
 #[derive(clap::Parser)]
 #[clap(name = "kvs", version = "0.1.0")]
@@ -32,8 +33,8 @@ fn get(store: &KvStore, key: String) {
     let ret = store.get(key.clone());
     match ret {
         Ok(res) => match res {
-            Some(value) => println!("get {}: {}", key, value),
-            None => println!("{} not found", key),
+            Some(value) => println!("{}", value),
+            None => println!("Key not found"),
         },
         Err(err) => println!("{}", err.msg),
     }
@@ -51,7 +52,7 @@ fn remove(store: &mut KvStore, key: String) {
 }
 
 fn main() {
-    let mut store = KvStore::new();
+    let mut store = KvStore::open(Path::new("./")).expect("generate kvstore error");
 
     let args = Args::parse();
     // println!("{}", args.action);
