@@ -2,6 +2,7 @@ use serde::{Serialize,Deserialize };
 use serde_json;
 
 use std::error::Error;
+use std::collections::HashMap;
 use std::{fs, io, path::PathBuf};
 
 #[derive(Debug)]
@@ -62,6 +63,17 @@ impl SSTable {
             Err(_) => ()
         }
     }
+
+    pub fn build_kvstore(&self) -> Result<HashMap<String, String>, Box<dyn Error>> {
+        let mut kvstore = HashMap::new();
+        for sstcolumn in &self.columns {
+            match sstcolumn.action {
+                ActionMap::Set => kvstore.insert(sstcolumn.key.clone(), sstcolumn.value.clone()),
+                ActionMap::Remove => kvstore.remove(&sstcolumn.key)
+            };
+        };
+        Ok(kvstore)
+    }
     
     fn write_to_file(&self) -> Result<(), Box<dyn Error>> {
 
@@ -69,7 +81,6 @@ impl SSTable {
 
         fs::write(&self.log_file, &json).expect("Unable to write file");
 
-        println!("{}", &json);
         Ok(())
     }
 
