@@ -1,5 +1,5 @@
 mod error;
 mod kv;
-pub mod sstable;
+pub mod log;
 pub use crate::error::Error;
 pub use crate::kv::{KvStore, Result};

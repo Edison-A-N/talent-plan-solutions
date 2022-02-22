@@ -3,13 +3,12 @@ use serde_json;
 use std::collections::HashMap;
 use std::error::Error;
 use std::io::prelude::*;
-use std::str::FromStr;
 use std::{fs, io, path::PathBuf};
 
 #[derive(Debug)]
-pub struct SSTable {
+pub struct LogProxy {
     log_file: PathBuf,
-    columns: Vec<SSTColumn>,
+    columns: Vec<LogRow>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -19,15 +18,15 @@ pub enum ActionMap {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SSTColumn {
+pub struct LogRow {
     pub action: ActionMap,
     pub key: String,
     pub value: String,
 }
 
-impl SSTColumn {
-    pub fn new(action: ActionMap, key: String, value: String) -> SSTColumn {
-        SSTColumn {
+impl LogRow {
+    pub fn new(action: ActionMap, key: String, value: String) -> LogRow {
+        LogRow {
             action: action,
             key: key,
             value: value,
@@ -35,19 +34,19 @@ impl SSTColumn {
     }
 }
 
-impl SSTable {
-    pub fn new(log_file: PathBuf) -> SSTable {
+impl LogProxy {
+    pub fn new(log_file: PathBuf) -> LogProxy {
         if !fs::metadata(&log_file).is_ok() {
             fs::File::create(&log_file)
                 .unwrap_or_else(|error| panic!("Failed to create the file: {:?}", error));
         }
-        SSTable {
+        LogProxy {
             log_file: log_file,
             columns: Vec::new(),
         }
     }
-    pub fn write_ahead(&mut self, sstcolumn: SSTColumn) -> Result<(), Box<dyn Error>> {
-        self.write_to_file(sstcolumn)?;
+    pub fn write_ahead(&mut self, logrow: LogRow) -> Result<(), Box<dyn Error>> {
+        self.write_to_file(logrow)?;
         Ok(())
     }
     pub fn load(&mut self) {
@@ -63,20 +62,20 @@ impl SSTable {
 
     pub fn build_kvstore(&self) -> Result<HashMap<String, String>, Box<dyn Error>> {
         let mut kvstore = HashMap::new();
-        for sstcolumn in &self.columns {
-            match sstcolumn.action {
-                ActionMap::Set => kvstore.insert(sstcolumn.key.clone(), sstcolumn.value.clone()),
-                ActionMap::Remove => kvstore.remove(&sstcolumn.key),
+        for logrow in &self.columns {
+            match logrow.action {
+                ActionMap::Set => kvstore.insert(logrow.key.clone(), logrow.value.clone()),
+                ActionMap::Remove => kvstore.remove(&logrow.key),
             };
         }
         Ok(kvstore)
     }
 
-    fn write_to_file(&self, sstcolumn: SSTColumn) -> Result<(), Box<dyn Error>> {
+    fn write_to_file(&self, logrow: LogRow) -> Result<(), Box<dyn Error>> {
         let mut file = fs::OpenOptions::new().append(true).open(&self.log_file)?;
         file.seek(io::SeekFrom::End(0))
             .expect("Unable to seek to log file");
-        let buf = serde_json::to_vec(&sstcolumn).expect("Unable to serialize to log file");
+        let buf = serde_json::to_vec(&logrow).expect("Unable to serialize to log file");
         file.write(&buf)?;
         Ok(())
     }
@@ -89,7 +88,7 @@ impl SSTable {
             if buf.is_empty() {
                 break;
             }
-            let column: SSTColumn = serde_json::from_slice(&buf)?;
+            let column: LogRow = serde_json::from_slice(&buf)?;
             self.columns.push(column);
             buf.clear();
         }

@@ -1,4 +1,4 @@
-use crate::{error::Error, sstable};
+use crate::{error::Error, log};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -9,24 +9,21 @@ pub type Result<T> = stdResult<T, Error>;
 pub struct KvStore {
     pub store_map: HashMap<String, String>,
     pub log_file: PathBuf,
-    sstable: sstable::SSTable,
+    log: log::LogProxy,
 }
 
 impl KvStore {
     pub fn new() -> KvStore {
         let tmp_log = PathBuf::new();
         KvStore {
-            sstable: sstable::SSTable::new(tmp_log.clone()),
+            log: log::LogProxy::new(tmp_log.clone()),
             store_map: HashMap::new(),
             log_file: tmp_log.clone(),
         }
     }
     pub fn set(&mut self, key: String, value: String) -> Result<()> {
-        let sstcolumn =
-            sstable::SSTColumn::new(sstable::ActionMap::Set, key.clone(), value.clone());
-        self.sstable
-            .write_ahead(sstcolumn)
-            .expect("write ahead error");
+        let logrow = log::LogRow::new(log::ActionMap::Set, key.clone(), value.clone());
+        self.log.write_ahead(logrow).expect("write ahead error");
         self.load();
         return Ok(());
     }
@@ -42,11 +39,8 @@ impl KvStore {
         };
     }
     pub fn remove(&mut self, key: String) -> Result<()> {
-        let sstcolumn =
-            sstable::SSTColumn::new(sstable::ActionMap::Remove, key.clone(), "".to_owned());
-        self.sstable
-            .write_ahead(sstcolumn)
-            .expect("write ahead error");
+        let logrow = log::LogRow::new(log::ActionMap::Remove, key.clone(), "".to_owned());
+        self.log.write_ahead(logrow).expect("write ahead error");
 
         let value = self.store_map.remove(&key);
         self.load();
@@ -64,14 +58,14 @@ impl KvStore {
         let mut kvstore = KvStore {
             log_file: log_file.clone(),
             store_map: HashMap::new(),
-            sstable: sstable::SSTable::new(log_file.clone()),
+            log: log::LogProxy::new(log_file.clone()),
         };
         kvstore.load();
         Ok(kvstore)
     }
 
     fn load(&mut self) {
-        self.sstable.load();
-        self.store_map = self.sstable.build_kvstore().expect("build kvstore error");
+        self.log.load();
+        self.store_map = self.log.build_kvstore().expect("build kvstore error");
     }
 }
