@@ -1,4 +1,4 @@
-use crate::{sstable, error::Error};
+use crate::{error::Error, sstable};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -22,10 +22,12 @@ impl KvStore {
         }
     }
     pub fn set(&mut self, key: String, value: String) -> Result<()> {
-        let sstcolumn = sstable::SSTColumn::new(
-            sstable::ActionMap::Set, key.clone(), value.clone());
-        self.sstable.write_ahead(sstcolumn).expect("write ahead error");
-        self.store_map.insert(key, value);
+        let sstcolumn =
+            sstable::SSTColumn::new(sstable::ActionMap::Set, key.clone(), value.clone());
+        self.sstable
+            .write_ahead(sstcolumn)
+            .expect("write ahead error");
+        self.load();
         return Ok(());
     }
     pub fn get(&self, key: String) -> Result<Option<String>> {
@@ -40,11 +42,14 @@ impl KvStore {
         };
     }
     pub fn remove(&mut self, key: String) -> Result<()> {
-        let sstcolumn = sstable::SSTColumn::new(
-            sstable::ActionMap::Remove, key.clone(), "".to_owned());
-        self.sstable.write_ahead(sstcolumn).expect("write ahead error");
+        let sstcolumn =
+            sstable::SSTColumn::new(sstable::ActionMap::Remove, key.clone(), "".to_owned());
+        self.sstable
+            .write_ahead(sstcolumn)
+            .expect("write ahead error");
 
         let value = self.store_map.remove(&key);
+        self.load();
         return match value {
             None => Err(Error {
                 msg: String::from("Key not found"),
@@ -54,11 +59,12 @@ impl KvStore {
         };
     }
     pub fn open(_dir: &Path) -> Result<KvStore> {
-        let log_file = _dir.join(Path::new("log1.sst"));
-        let mut kvstore = KvStore{
+        let log_file_name = "kvstore.log";
+        let log_file = _dir.join(Path::new(&log_file_name));
+        let mut kvstore = KvStore {
             log_file: log_file.clone(),
             store_map: HashMap::new(),
-            sstable: sstable::SSTable::new(log_file.clone())
+            sstable: sstable::SSTable::new(log_file.clone()),
         };
         kvstore.load();
         Ok(kvstore)
